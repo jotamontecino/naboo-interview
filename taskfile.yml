@@ -1,0 +1,155 @@
+version: "3"
+
+vars:
+  OCI_ENGINE: "podman"
+  MONGO_IMAGE: "docker.io/mongo:8.0.5"
+  SECRETS_PATH: $PWD/.secrets
+  POD_NAME: naboo-test
+  MONGO_USER: "mongoadmin"
+  MONGO_PASSWORD: "secret"
+  MONGO_HOST: "localhost"
+  MONGO_PORT: "27017"
+  MONGO_DATA_PATH: $PWD/data
+  NODE_IMAGE: "docker.io/trashnochados/node:22.14-dev"
+  FRONT_FOLDER: $PWD/front-end
+  FRONT_END_PORT: "3001"
+  FRONT_END_HOST: "0.0.0.0"
+  BACK_FOLDER: $PWD/back-end
+  BACK_END_PORT: "3000"
+  BACK_END_HOST: "0.0.0.0"
+  BACK_DB_NAME: naboo
+
+tasks:
+  init:
+    silent: true
+    desc: Init back-end and front-end project
+    cmds:
+      - "{{.OCI_ENGINE}} run --rm -it -v {{.FRONT_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm i"
+      - "{{.OCI_ENGINE}} run --rm -it -v {{.BACK_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm i"
+      - mkdir -p {{.MONGO_DATA_PATH}}
+      - mkdir -p {{.SECRETS_PATH}}
+  run:
+    desc: Creates the pod and start the stack containers
+    cmds:
+      - task: createPod
+      - task: mongo-run
+      - task: back-run
+      - task: front-run
+  stop:
+    desc: Stop the stack
+    cmds:
+      - task: mongo-stop
+      - task: back-stop
+      - task: front-stop
+
+  watch-*:
+    silent: true
+    desc: Show the logs of the container with the name passed as parameter, if it exists. It follows the logs.
+    vars:
+      container: '{{index .MATCH 0}}'
+    cmds:
+      - "{{.OCI_ENGINE}} logs -f {{.container}}"
+    preconditions:
+      - sh: '{{.OCI_ENGINE}} ps -f "name={{.container}},status=running" --format="{{"{{"}}.Names{{"}}"}}" | grep -w {{.container}}'
+        msg: "The container {{.container}} isn't running. You can list the container with the task ps."
+
+  log-*:
+    silent: true
+    desc: Shows logs for the passed container name, if it exists
+    vars:
+      container: '{{index .MATCH 0}}'
+    cmds:
+      - "{{.OCI_ENGINE}} logs {{.container}}"
+    preconditions:
+      - sh: '{{.OCI_ENGINE}} ps -f "name={{.container}}" --format="{{"{{"}}.Names{{"}}"}}" | grep -w {{.container}}'
+        msg: "The container {{.container}} isn't running. You can list the container with the task ps."
+
+  sh-*:
+    silent: true
+    desc: Open sh inside the given container
+    vars:
+      container: '{{index .MATCH 0}}'
+    cmds:
+      - "{{.OCI_ENGINE}} exec -it {{.container}} bash"
+    preconditions:
+      - sh: '{{.OCI_ENGINE}} ps -f "name={{.container}},status=running" --format="{{"{{"}}.Names{{"}}"}}" | grep -w {{.container}}'
+        msg: "The container {{.container}} isn't running. You can list the container with the task ps."
+  ps:
+    desc: list running containers
+    silent: true
+    cmds:
+      - '{{.OCI_ENGINE}} ps -f "pod=naboo-test" --format="ID\t{{"{{"}}.ID{{"}}"}}{{"\n"}}Name\t{{"{{"}}.Names{{"}}"}}{{"\n"}}Image\t{{"{{"}}.Image{{"}}"}}{{"\n"}}Ports\t{{"{{"}}.Ports{{"}}"}}{{"\n"}}Command\t{{"{{"}}.Command{{"}}"}}{{"\n"}}Status\t{{"{{"}}.Status{{"}}"}}{{"\n"}}{{"\n"}}"'
+  mongocli:
+    silent: true
+    cmds:
+      - "{{.OCI_ENGINE}} exec -it mongo mongosh --host {{.MONGO_HOST}} -u {{.MONGO_USER}} -p {{.MONGO_PASSWORD}} --authenticationDatabase admin {{.BACK_DB_NAME}}"
+    preconditions:
+      - sh: '{{.OCI_ENGINE}} ps -f "name=mongo,status=running" --format="{{"{{"}}.Names{{"}}"}}" | grep -w mongo'
+        msg: "The container mongo isn't running. You can list the container with the task ps."
+
+### internal functions
+  createPod:
+    internal: true
+    silent: true
+    cmds:
+      - "{{.OCI_ENGINE}} pod create --name {{.POD_NAME}} -p {{.FRONT_END_PORT}}:{{.FRONT_END_PORT}} -p {{.BACK_END_PORT}}:{{.BACK_END_PORT}}"
+    status:
+      - '{{.OCI_ENGINE}} pod inspect {{.POD_NAME}}'
+  front-run:
+    internal: true
+    silent: true
+    vars:
+      CONTAINER: front
+    cmds:
+      - echo "{{"\n"}}Starting {{.CONTAINER}} service"
+      - "{{.OCI_ENGINE}} run --name {{.CONTAINER}}  --pod {{.POD_NAME}} -d --rm -it -v {{.FRONT_FOLDER}}:/usr/src/app/ -e PORT={{.FRONT_END_PORT}}  -e HOST={{.FRONT_END_HOST}} -e FRONTEND_DOMAIN=localhost {{.NODE_IMAGE}} npm run dev"
+    status:
+      - '{{.OCI_ENGINE}} ps -f "name={{.CONTAINER}}" -q | grep .'
+  front-stop:
+    internal: true
+    silent: true
+    vars:
+      CONTAINER: front
+    cmds:
+      - 'echo "{{"\n"}}Stopping the service: " && {{.OCI_ENGINE}} stop {{.CONTAINER}}'
+    preconditions:
+      - sh: '{{.OCI_ENGINE}} ps -f "name={{.CONTAINER}},status=running" -q | grep .'
+        msg: "The container {{.CONTAINER}} isn't running. You can list the container with the task ps."
+  
+  mongo-run:
+    internal: true
+    silent: true
+    vars:
+      CONTAINER: mongo
+    cmds:
+      - echo "{{"\n"}}Starting {{.CONTAINER}} service"
+      - "{{.OCI_ENGINE}} run --name {{.CONTAINER}} --pod {{.POD_NAME}} -d --rm -it -e MONGO_INITDB_ROOT_USERNAME={{.MONGO_USER}} -e MONGO_INITDB_ROOT_PASSWORD={{.MONGO_PASSWORD}} -v {{.MONGO_DATA_PATH}}:/data/db {{.MONGO_IMAGE}}"
+    status:
+      - '{{.OCI_ENGINE}} ps -f "name={{.CONTAINER}},status=running" -q | grep .'
+  mongo-stop:
+    internal: true
+    silent: true
+    cmds:
+      - 'echo "{{"\n"}}Stopping the service: " && {{.OCI_ENGINE}} stop mongo'
+    preconditions:
+      - sh: '{{.OCI_ENGINE}} ps -f "name=mongo,status=running" -q | grep .'
+        msg: "The container mongo isn't running. You can list the container with the task ps."
+
+  back-run:
+    internal: true
+    silent: true
+    vars:
+      CONTAINER: back
+    cmds:
+      - echo "{{"\n"}}Starting {{.CONTAINER}} service"
+      - '{{.OCI_ENGINE}} run --name {{.CONTAINER}} --pod {{.POD_NAME}} -d --rm -it -e PORT={{.BACK_END_PORT}} -e HOST={{.BACK_END_HOST}} -e MONGO_URI="mongodb://{{.MONGO_USER}}:{{.MONGO_PASSWORD}}@{{.MONGO_HOST}}:{{.MONGO_PORT}}/{{.BACK_DB_NAME}}?authSource=admin"  -v {{.BACK_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm run start:dev'
+    status:
+      - '{{.OCI_ENGINE}} ps -f "name={{.CONTAINER}},status=running" -q | grep .'
+  back-stop:
+    internal: true
+    silent: true
+    cmds:
+      - 'echo "{{"\n"}}Stopping the service: " && {{.OCI_ENGINE}} stop back'
+    preconditions:
+      - sh: '{{.OCI_ENGINE}} ps -f "name=back,status=running" -q | grep .'
+        msg: "The container back isn't running. You can list the container with the task ps."
