@@ -86,7 +86,21 @@ tasks:
     preconditions:
       - sh: '{{.OCI_ENGINE}} ps -f "name=mongo,status=running" --format="{{"{{"}}.Names{{"}}"}}" | grep -w mongo'
         msg: "The container mongo isn't running. You can list the container with the task ps."
+  
+  lint:
+    desc: Run linter in the front and back project
+    vars:
+      CONTAINER: back
+    cmds:
+      - echo "{{"\n"}}Starting {{.CONTAINER}} service"
+      - '{{.OCI_ENGINE}} run --pod {{.POD_NAME}} --rm -it -e FRONTEND_URL="http://localhost:3001" -e PORT={{.BACK_END_PORT}} -e HOST={{.BACK_END_HOST}} -e MONGO_URI="mongodb://{{.MONGO_USER}}:{{.MONGO_PASSWORD}}@{{.MONGO_HOST}}:{{.MONGO_PORT}}/{{.BACK_DB_NAME}}?authSource=admin"  -v {{.BACK_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm run lint'
+      - "{{.OCI_ENGINE}} run --pod {{.POD_NAME}} --rm -it -v {{.FRONT_FOLDER}}:/usr/src/app/ -e PORT={{.FRONT_END_PORT}}  -e HOST={{.FRONT_END_HOST}} -e FRONTEND_DOMAIN=localhost {{.NODE_IMAGE}} npm run dev"
 
+  front-codegen:
+    desc: launch the codegen function for the front*end project
+    cmds:
+      - cp {{.BACK_FOLDER}}/schema.gql {{.FRONT_FOLDER}}/src/graphql/schema.gql
+      - "{{.OCI_ENGINE}} run --pod {{.POD_NAME}} --rm -it -v {{.FRONT_FOLDER}}:/usr/src/app/ -e PORT={{.FRONT_END_PORT}}  -e HOST={{.FRONT_END_HOST}} -e FRONTEND_DOMAIN=localhost {{.NODE_IMAGE}} npx graphql-codegen"
 ### internal functions
   createPod:
     internal: true
@@ -153,9 +167,3 @@ tasks:
     preconditions:
       - sh: '{{.OCI_ENGINE}} ps -f "name=back,status=running" -q | grep .'
         msg: "The container back isn't running. You can list the container with the task ps."
-  back-lint:
-    vars:
-      CONTAINER: back
-    cmds:
-      - echo "{{"\n"}}Starting {{.CONTAINER}} service"
-      - '{{.OCI_ENGINE}} run --pod {{.POD_NAME}} --rm -it -e FRONTEND_URL="http://localhost:3001" -e PORT={{.BACK_END_PORT}} -e HOST={{.BACK_END_HOST}} -e MONGO_URI="mongodb://{{.MONGO_USER}}:{{.MONGO_PASSWORD}}@{{.MONGO_HOST}}:{{.MONGO_PORT}}/{{.BACK_DB_NAME}}?authSource=admin"  -v {{.BACK_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm run lint'
