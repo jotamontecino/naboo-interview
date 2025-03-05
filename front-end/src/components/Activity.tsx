@@ -80,6 +80,11 @@ export function Activity({ activity }: ActivityProps) {
           </Button>
         </Link>
 
+        {user && user.role === "admin" && (
+          <Text size="sm" color="dimmed">
+            created at: {activity.createdAt}
+          </Text>
+        )}
       </Card>
     </Grid.Col>
   );

@@ -7,6 +7,7 @@ import {
 import GetActivity from "@/graphql/queries/activity/getActivity";
 import { Badge, Flex, Grid, Group, Image, Text } from "@mantine/core";
 import { GetServerSideProps } from "next";
+import { useAuth } from "@/hooks";
 import Head from "next/head";
 import { useRouter } from "next/router";
 
@@ -31,11 +32,14 @@ export const getServerSideProps: GetServerSideProps<
 
 export default function ActivityDetails({ activity }: ActivityDetailsProps) {
   const router = useRouter();
-
+  const { user } = useAuth();
+  console.log("----")
+  console.log(user)
+  console.log("----")
   return (
     <>
       <Head>
-        <title>{activity.name} | CDTR</title>
+        <title>{activity.name} | CDTR1</title>
       </Head>
       <PageTitle title={activity.name} prevPath={router.back} />
       <Grid>
@@ -62,6 +66,11 @@ export default function ActivityDetails({ activity }: ActivityDetailsProps) {
             <Text size="sm" color="dimmed">
               Ajouté par {activity.owner.firstName} {activity.owner.lastName}
             </Text>
+            {user && user.role === "admin" && (
+              <Text size="sm" color="dimmed">
+                {activity.createdAt}
+              </Text>
+            )}
           </Flex>
         </Grid.Col>
       </Grid>
