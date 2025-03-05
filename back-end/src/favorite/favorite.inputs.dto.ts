@@ -7,7 +7,6 @@ export class CreateFavoriteInput {
   @IsNotEmpty()
   activity!: string;
 
-
   @Field(() => Int)
   @IsNotEmpty()
   @IsNumber()

@@ -2,11 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Favorite } from './favorite.schema';
-import { 
-    CreateFavoriteInput,
-    ChangeWeightFavoriteInput,
+import {
+  CreateFavoriteInput,
+  ChangeWeightFavoriteInput,
 } from './favorite.inputs.dto';
-import { log } from 'console';
 
 @Injectable()
 export class FavoriteService {
@@ -18,7 +17,7 @@ export class FavoriteService {
   async findAll(): Promise<Favorite[]> {
     return this.favoriteModel.find().sort({ weight: -1 }).exec();
   }
-  
+
   async findByUser(userId: string): Promise<Favorite[]> {
     return this.favoriteModel
       .find({ owner: userId })
@@ -40,8 +39,13 @@ export class FavoriteService {
     return favorite;
   }
 
-  async changeWeight(userId: string, {weight, id}: ChangeWeightFavoriteInput): Promise<Favorite> {
-    const favorite = await this.favoriteModel.findOneAndUpdate({_id: id, owner: userId}, { $set: {weight}}).exec();
+  async changeWeight(
+    userId: string,
+    { weight, id }: ChangeWeightFavoriteInput,
+  ): Promise<Favorite> {
+    const favorite = await this.favoriteModel
+      .findOneAndUpdate({ _id: id, owner: userId }, { $set: { weight } })
+      .exec();
     if (!favorite) throw new NotFoundException();
     return favorite;
   }
@@ -52,7 +56,8 @@ export class FavoriteService {
 
   async countDocumentsForUser(userId: string): Promise<number> {
     return this.favoriteModel
-    .find({ owner: userId })
-    .estimatedDocumentCount().exec();
+      .find({ owner: userId })
+      .estimatedDocumentCount()
+      .exec();
   }
 }

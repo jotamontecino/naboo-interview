@@ -4,7 +4,6 @@ import {
   Mutation,
   Args,
   Context,
-  Int,
   Parent,
   ResolveField,
   ID,
@@ -12,17 +11,15 @@ import {
 import { UseGuards } from '@nestjs/common';
 import { FavoriteService } from './favorite.service';
 import { Favorite } from './favorite.schema';
-import { 
-    CreateFavoriteInput,
-    ChangeWeightFavoriteInput,
+import {
+  CreateFavoriteInput,
+  ChangeWeightFavoriteInput,
 } from './favorite.inputs.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { User } from 'src/user/user.schema';
 import { Activity } from '../activity/activity.schema';
 import { ActivityService } from '../activity/activity.service';
-
 import { ContextWithJWTPayload } from 'src/auth/types/context';
-import { cpSync } from 'fs';
 
 @Resolver(() => Favorite)
 export class FavoriteResolver {
@@ -53,8 +50,7 @@ export class FavoriteResolver {
   async getFavorites(
     @Context() context: ContextWithJWTPayload,
   ): Promise<Favorite[]> {
-    return this.favoriteService.findAll();
-    
+    return this.favoriteService.findByUser(context.jwtPayload.id);
   }
 
   @Mutation(() => Favorite)
@@ -64,25 +60,26 @@ export class FavoriteResolver {
     @Args('createFavoriteInput') createFavorite: CreateFavoriteInput,
   ): Promise<Favorite> {
     try {
-      await this.activityService.findOne(createFavorite.activity);  
+      await this.activityService.findOne(createFavorite.activity);
     } catch (error: any) {
-        if (error.message === "Not Found") {
-            throw new Error(`Activity(${createFavorite.activity}) not found`);
-        }
-        throw error;
-    }      
+      if (error.message === 'Not Found') {
+        throw new Error(`Activity(${createFavorite.activity}) not found`);
+      }
+      throw error;
+    }
     return this.favoriteService.create(context.jwtPayload.id, createFavorite);
-    
   }
-
 
   @Mutation(() => Favorite)
   @UseGuards(AuthGuard)
   async changeFavoriteWeightById(
     @Context() context: ContextWithJWTPayload,
-    @Args('ChangeWeightFavoriteInput') changeFavoriteWeightById: ChangeWeightFavoriteInput,
-  ): Promise<Favorite> { 
-    return this.favoriteService.changeWeight(context.jwtPayload.id, changeFavoriteWeightById);
-    
+    @Args('ChangeWeightFavoriteInput')
+    changeFavoriteWeightById: ChangeWeightFavoriteInput,
+  ): Promise<Favorite> {
+    return this.favoriteService.changeWeight(
+      context.jwtPayload.id,
+      changeFavoriteWeightById,
+    );
   }
 }
