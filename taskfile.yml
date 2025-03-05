@@ -26,8 +26,8 @@ tasks:
     cmds:
       - "{{.OCI_ENGINE}} run --rm -it -v {{.FRONT_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm i"
       - "{{.OCI_ENGINE}} run --rm -it -v {{.BACK_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm i"
+      - cp {{.BACK_FOLDER}}/.env.dist {{.BACK_FOLDER}}/.env
       - mkdir -p {{.MONGO_DATA_PATH}}
-      - mkdir -p {{.SECRETS_PATH}}
   run:
     desc: Creates the pod and start the stack containers
     cmds:
@@ -142,7 +142,7 @@ tasks:
       CONTAINER: back
     cmds:
       - echo "{{"\n"}}Starting {{.CONTAINER}} service"
-      - '{{.OCI_ENGINE}} run --name {{.CONTAINER}} --pod {{.POD_NAME}} -d --rm -it -e PORT={{.BACK_END_PORT}} -e HOST={{.BACK_END_HOST}} -e MONGO_URI="mongodb://{{.MONGO_USER}}:{{.MONGO_PASSWORD}}@{{.MONGO_HOST}}:{{.MONGO_PORT}}/{{.BACK_DB_NAME}}?authSource=admin"  -v {{.BACK_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm run start:dev'
+      - '{{.OCI_ENGINE}} run --name {{.CONTAINER}} --pod {{.POD_NAME}} -d --rm -it -e FRONTEND_URL="http://localhost:3001" -e PORT={{.BACK_END_PORT}} -e HOST={{.BACK_END_HOST}} -e MONGO_URI="mongodb://{{.MONGO_USER}}:{{.MONGO_PASSWORD}}@{{.MONGO_HOST}}:{{.MONGO_PORT}}/{{.BACK_DB_NAME}}?authSource=admin"  -v {{.BACK_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm run start:dev'
     status:
       - '{{.OCI_ENGINE}} ps -f "name={{.CONTAINER}},status=running" -q | grep .'
   back-stop:
@@ -153,3 +153,9 @@ tasks:
     preconditions:
       - sh: '{{.OCI_ENGINE}} ps -f "name=back,status=running" -q | grep .'
         msg: "The container back isn't running. You can list the container with the task ps."
+  back-lint:
+    vars:
+      CONTAINER: back
+    cmds:
+      - echo "{{"\n"}}Starting {{.CONTAINER}} service"
+      - '{{.OCI_ENGINE}} run --pod {{.POD_NAME}} --rm -it -e FRONTEND_URL="http://localhost:3001" -e PORT={{.BACK_END_PORT}} -e HOST={{.BACK_END_HOST}} -e MONGO_URI="mongodb://{{.MONGO_USER}}:{{.MONGO_PASSWORD}}@{{.MONGO_HOST}}:{{.MONGO_PORT}}/{{.BACK_DB_NAME}}?authSource=admin"  -v {{.BACK_FOLDER}}:/usr/src/app/ {{.NODE_IMAGE}} npm run lint'

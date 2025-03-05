@@ -2,6 +2,7 @@ import { Module, UnauthorizedException } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ActivityModule } from './activity/activity.module';
+import { FavoriteModule } from './favorite/favorite.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -60,6 +61,7 @@ import { PayloadDto } from './auth/types/jwtPayload.dto';
     UserModule,
     MeModule,
     ActivityModule,
+    FavoriteModule,
     SeedModule,
   ],
   controllers: [AppController],
