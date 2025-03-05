@@ -1,6 +1,17 @@
 import { ActivityFragment } from "@/graphql/generated/types";
+import { useAuth } from "@/hooks";
 import { useGlobalStyles } from "@/utils";
 import { Badge, Button, Card, Grid, Group, Image, Text } from "@mantine/core";
+import { IconHeart, IconHeartFilled } from '@tabler/icons-react';
+import { ActionIcon } from '@mantine/core';
+import { useMutation } from "@apollo/client";
+import CreateActivity from "@/graphql/mutations/activity/createActivity";
+import {
+  CreateFavoriteInput,
+  CreateFavoriteMutation,
+  CreateFavoriteMutationVariables,
+} from "@/graphql/generated/types";
+
 import Link from "next/link";
 
 interface ActivityProps {
@@ -8,7 +19,25 @@ interface ActivityProps {
 }
 
 export function Activity({ activity }: ActivityProps) {
+  const { user } = useAuth();
   const { classes } = useGlobalStyles();
+
+  const [createFavorite] = useMutation<
+  CreateFavoriteMutation,
+  CreateFavoriteMutationVariables
+>(CreateActivity);
+
+  const onToggleFavorite = async () => {
+    let createFavoriteInput = {
+      activity: activity.id,
+      weight: 0,
+    }
+    let res = await createFavorite({
+      variables: {
+        createFavoriteInput
+      }
+    })
+  }
 
   return (
     <Grid.Col span={4}>
@@ -19,6 +48,11 @@ export function Activity({ activity }: ActivityProps) {
             height={160}
             alt="random image of city"
           />
+          {user && (
+            <ActionIcon variant="filled"  color="teal" aria-label="Settings" style={{position: 'absolute', top: '0px', right: '0px'}} >
+              <IconHeart className="ddFavorite" style={{ width: '70%', height: '70%' }} stroke={1.5} onClick={onToggleFavorite} />
+            </ActionIcon>
+          )}
         </Card.Section>
 
         <Group position="apart" mt="md" mb="xs">
@@ -45,6 +79,7 @@ export function Activity({ activity }: ActivityProps) {
             Voir plus
           </Button>
         </Link>
+
       </Card>
     </Grid.Col>
   );
